@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="description" content="Idea Vault — offline-first idea dumping ground with strict structure and one Active Project." />
+
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <!-- iOS Add to Home Screen helpers -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <title>Idea Vault</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">IV</div>
+        <div class="brand-text">
+          <div class="brand-title">Idea Vault</div>
+          <div class="brand-sub">One Active. Everything else safely parked.</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="btnNewIdea" class="btn btn-primary" title="New Idea (N)">
+          <span class="btn-ico" aria-hidden="true">＋</span>
+          <span>New Idea</span>
+        </button>
+
+        <button id="btnHelp" class="btn btn-ghost" title="Help">
+          <span class="btn-ico" aria-hidden="true">?</span>
+          <span class="hide-sm">Help</span>
+        </button>
+
+        <div class="status-pill" id="saveStatus" aria-live="polite">Saved</div>
+      </div>
+    </header>
+
+    <nav class="sidebar" aria-label="Buckets">
+      <button class="nav-item active" data-bucket="active">
+        <span class="nav-dot dot-active"></span> Active Project
+        <span class="count" id="countActive">0</span>
+      </button>
+      <button class="nav-item" data-bucket="parked">
+        <span class="nav-dot dot-parked"></span> Parked Ideas
+        <span class="count" id="countParked">0</span>
+      </button>
+      <button class="nav-item" data-bucket="long_term">
+        <span class="nav-dot dot-long"></span> Long-Term Concepts
+        <span class="count" id="countLong">0</span>
+      </button>
+      <button class="nav-item" data-bucket="sparks">
+        <span class="nav-dot dot-sparks"></span> Random Sparks
+        <span class="count" id="countSparks">0</span>
+      </button>
+
+      <div class="nav-sep"></div>
+
+      <button class="nav-item" data-view="daily">
+        <span class="nav-dot dot-daily"></span> Daily Sweep
+      </button>
+
+      <button class="nav-item" data-view="export">
+        <span class="nav-dot dot-tools"></span> Export / Import
+      </button>
+
+      <button class="nav-item" data-view="settings">
+        <span class="nav-dot dot-tools"></span> Settings
+      </button>
+
+      <div class="sidebar-footer">
+        <div class="muted small" id="offlineIndicator">Offline-ready</div>
+        <div class="muted small" id="storageUsage">Storage: —</div>
+      </div>
+    </nav>
+
+    <main class="main">
+      <section class="panel list-panel">
+        <div class="panel-header">
+          <div class="panel-title" id="panelTitle">Active Project</div>
+
+          <div class="panel-tools">
+            <div class="search">
+              <input id="searchInput" type="search" placeholder="Search title, description, tags…" />
+              <button id="btnClearSearch" class="btn btn-ghost btn-icon" title="Clear">✕</button>
+            </div>
+
+            <button id="btnQuickDumpToggle" class="btn btn-ghost" title="Quick Dump">
+              Quick Dump
+            </button>
+          </div>
+        </div>
+
+        <div id="quickDump" class="quickdump hidden">
+          <div class="quickdump-row">
+            <input id="qdTitle" type="text" placeholder="Quick title…" />
+            <select id="qdBucket" title="Bucket">
+              <option value="parked" selected>Parked</option>
+              <option value="active">Active</option>
+              <option value="long_term">Long-Term</option>
+              <option value="sparks">Sparks</option>
+            </select>
+            <button id="btnQuickAdd" class="btn btn-primary">Add</button>
+          </div>
+          <textarea id="qdNotes" rows="3" placeholder="Optional notes…"></textarea>
+          <div class="muted small">
+            Fast capture rule: defaults to <b>Parked</b>. If you set Active and one already exists, the old one gets demoted.
+          </div>
+        </div>
+
+        <div class="filters">
+          <select id="filterVenture">
+            <option value="">All ventures</option>
+            <option>Forge &amp; Fable Games</option>
+            <option>BluPrints</option>
+            <option>OakNoggin</option>
+            <option>Apps</option>
+            <option>Content</option>
+            <option>Other</option>
+          </select>
+
+          <select id="filterPriority">
+            <option value="">All priority</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+
+          <input id="filterTag" type="text" placeholder="Tag filter…" />
+
+          <select id="sortSelect">
+            <option value="updatedAt_desc">Sort: Last updated</option>
+            <option value="createdAt_desc">Sort: Newest</option>
+            <option value="createdAt_asc">Sort: Oldest</option>
+            <option value="priority_desc">Sort: Priority</option>
+          </select>
+        </div>
+
+        <div id="ideaList" class="idea-list" role="list"></div>
+
+        <div id="emptyState" class="empty">
+          <div class="empty-title">Nothing here yet.</div>
+          <div class="empty-sub">Dump something in. Your brain will relax.</div>
+          <button id="btnEmptyNew" class="btn btn-primary">New Idea</button>
+        </div>
+      </section>
+
+      <aside class="panel detail-panel" id="detailPanel" aria-label="Idea details">
+        <div class="detail-header">
+          <div class="detail-title">Idea Details</div>
+          <div class="detail-actions">
+            <button id="btnPromote" class="btn btn-ghost">Promote to Active</button>
+            <button id="btnParkActive" class="btn btn-ghost">Park it</button>
+            <button id="btnDelete" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+
+        <div id="detailEmpty" class="detail-empty">
+          <div class="muted">Select an idea to edit.</div>
+        </div>
+
+        <form id="ideaForm" class="detail-form hidden" autocomplete="off">
+          <input type="hidden" id="ideaId" />
+
+          <div class="grid2">
+            <div class="field">
+              <label for="title">Title</label>
+              <input id="title" type="text" required />
+            </div>
+
+            <div class="field">
+              <label for="bucket">Bucket</label>
+              <select id="bucket">
+                <option value="active">Active</option>
+                <option value="parked" selected>Parked</option>
+                <option value="long_term">Long-Term</option>
+                <option value="sparks">Sparks</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="ventureCategory">Venture Category</label>
+              <input id="ventureCategory" list="ventureList" placeholder="e.g., Forge & Fable Games" />
+              <datalist id="ventureList">
+                <option value="Forge & Fable Games"></option>
+                <option value="BluPrints"></option>
+                <option value="OakNoggin"></option>
+                <option value="Apps"></option>
+                <option value="Content"></option>
+                <option value="Other"></option>
+              </datalist>
+            </div>
+
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status">
+                <option value="draft">Draft</option>
+                <option value="ready">Ready</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label for="priority">Priority</label>
+              <select id="priority">
+                <option value="high">High</option>
+                <option value="medium" selected>Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="nextAction">Next Action</label>
+              <input id="nextAction" type="text" placeholder="One step. Keep it tiny." />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="description">Description</label>
+            <textarea id="description" rows="4" placeholder="What is it? Why does it matter?"></textarea>
+          </div>
+
+          <div class="field">
+            <label for="keyNotes">Key Notes</label>
+            <textarea id="keyNotes" rows="4" placeholder="Notes, constraints, risks, cost guesses…"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Tags</label>
+            <div class="tag-row">
+              <input id="tagInput" type="text" placeholder="Type tag and press Enter…" />
+              <div class="tag-hint muted small">Example: prototype, IP, content, finance</div>
+            </div>
+            <div id="tagChips" class="chips"></div>
+          </div>
+
+          <div class="field">
+            <label>Links</label>
+            <div id="linksList" class="links"></div>
+            <button type="button" id="btnAddLink" class="btn btn-ghost">+ Add link</button>
+          </div>
+
+          <div class="field">
+            <label>Images</label>
+            <div class="img-tools">
+              <input id="imagePicker" type="file" accept="image/*" multiple />
+              <div class="muted small">Stored offline as blobs in IndexedDB.</div>
+            </div>
+            <div id="imageGrid" class="img-grid"></div>
+          </div>
+
+          <div class="meta">
+            <div class="muted small" id="createdMeta">Created: —</div>
+            <div class="muted small" id="updatedMeta">Updated: —</div>
+          </div>
+        </form>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Mobile drawer overlay -->
+  <div id="drawerOverlay" class="drawer-overlay hidden"></div>
+
+  <!-- Dialog -->
+  <div id="dialogOverlay" class="dialog-overlay hidden" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <div class="dialog-title" id="dialogTitle">Dialog</div>
+      <div class="dialog-body" id="dialogBody"></div>
+      <div class="dialog-actions" id="dialogActions"></div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpOverlay" class="dialog-overlay hidden" role="dialog" aria-modal="true">
+    <div class="dialog dialog-wide">
+      <div class="dialog-title">How to Use Idea Vault</div>
+      <div class="dialog-body">
+        <div class="help">
+          <h3>The Rule</h3>
+          <p><b>Only ONE Active Project</b>. If it’s not Active, it goes into Parked / Long-Term / Sparks. No parallel execution. No emotional attachment. Your brain relaxes because ideas are safe.</p>
+
+          <h3>Fast capture</h3>
+          <ul>
+            <li><b>New Idea</b> button from anywhere (keyboard: <b>N</b>).</li>
+            <li><b>Quick Dump</b> for instant capture (defaults to <b>Parked</b>).</li>
+          </ul>
+
+          <h3>Active enforcement</h3>
+          <ul>
+            <li>Promoting something to Active will <b>demote the previous Active</b> (choose Parked or Long-Term).</li>
+            <li>Use <b>Park it</b> on the Active idea to push it back to Parked quickly.</li>
+          </ul>
+
+          <h3>Offline</h3>
+          <ul>
+            <li>After first load, it works fully offline via Service Worker caching.</li>
+            <li>Everything is saved locally in your browser’s IndexedDB (including images).</li>
+          </ul>
+
+          <h3>Backup</h3>
+          <ul>
+            <li>Use <b>Export / Import</b> to back up the whole vault.</li>
+            <li>Full export can include images (bigger file). Light export is ideas-only.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button id="btnHelpClose" class="btn btn-primary">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Views: Export / Settings / Daily -->
+  <div id="viewOverlay" class="dialog-overlay hidden" role="dialog" aria-modal="true">
+    <div class="dialog dialog-wide">
+      <div class="dialog-title" id="viewTitle">View</div>
+      <div class="dialog-body" id="viewBody"></div>
+      <div class="dialog-actions">
+        <button id="btnViewClose" class="btn btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
